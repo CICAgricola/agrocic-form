@@ -1,0 +1,116 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgroCIC - Formulário Offline</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    input, select, textarea, button { width: 100%; padding: 8px; margin-top: 5px; }
+    .enviado { color: green; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Formulário AgroCIC</h2>
+  <form id="agrocicForm">
+    <label>Nome da fazenda</label>
+    <select name="fazenda" required>
+      <option value="">Selecione</option>
+      <option>Shalon</option>
+      <option>Ribeirão Frio</option>
+      <option>Monte das Oliveiras</option>
+      <option>São Rafael</option>
+      <option>Bom Jesus</option>
+      <option>Marina</option>
+      <option>Fazenda Eureka</option>
+      <option>Ponto Novo</option>
+    </select>
+
+    <label>Data</label>
+    <input type="date" name="data" required>
+
+    <label>Choveu?</label>
+    <select name="choveu">
+      <option value="">Selecione</option>
+      <option>Sim</option>
+      <option>Não</option>
+    </select>
+
+    <label>Balizamentos</label>
+    <input type="number" name="balizamentos">
+
+    <label>Aplicação de herbicida</label>
+    <select name="herbicida">
+      <option value="">Selecione</option>
+      <option>Sim</option>
+      <option>Não</option>
+    </select>
+
+    <label>Coveamento</label>
+    <input type="number" name="coveamento">
+
+    <label>Adubação</label>
+    <input type="number" name="adubacao">
+
+    <label>Plantio</label>
+    <input type="number" name="plantio">
+
+    <label>Outro</label>
+    <input type="text" name="outro">
+
+    <label>Observações</label>
+    <textarea name="observacoes"></textarea>
+
+    <button type="submit">Salvar</button>
+    <p id="status"></p>
+  </form>
+
+  <script>
+    const form = document.getElementById('agrocicForm');
+    const statusEl = document.getElementById('status');
+    const endpoint = "https://script.google.com/macros/s/AKfycbyCMX_8G_b55btDn9ZwBHaeG-UmxJqYqGdJkfbSJfWGp8uHHQMvRGXlccHFRhX8o58n/exec";
+
+    function salvarLocalmente(dados) {
+      const pendentes = JSON.parse(localStorage.getItem('agrocicPendentes') || '[]');
+      pendentes.push(dados);
+      localStorage.setItem('agrocicPendentes', JSON.stringify(pendentes));
+    }
+
+    async function tentarSincronizar() {
+      const pendentes = JSON.parse(localStorage.getItem('agrocicPendentes') || '[]');
+      const enviados = [];
+
+      for (const dados of pendentes) {
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(dados),
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (res.ok) enviados.push(dados);
+        } catch (_) { }
+      }
+
+      if (enviados.length > 0) {
+        const restantes = pendentes.filter(d => !enviados.includes(d));
+        localStorage.setItem('agrocicPendentes', JSON.stringify(restantes));
+        statusEl.textContent = 'Dados sincronizados!';
+      }
+    }
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const dados = Object.fromEntries(new FormData(form).entries());
+      salvarLocalmente(dados);
+      statusEl.textContent = 'Dados salvos localmente. Serão enviados ao conectar-se à internet.';
+      form.reset();
+      tentarSincronizar();
+    });
+
+    window.addEventListener('online', tentarSincronizar);
+    window.addEventListener('load', tentarSincronizar);
+  </script>
+</body>
+</html>
