@@ -69,17 +69,22 @@
   <script>
     const form = document.getElementById('agrocicForm');
     const statusEl = document.getElementById('status');
-    const endpoint = "https://script.google.com/macros/s/AKfycbxT09kT-ZF2cAJ6XF2ttFOvd-PoAS0mZ8VX5JHw-nZbOgvekkUpuVcly6sKN8DCPGnI/exec";
+    const endpoint = "https://script.google.com/macros/s/AKfycbyCMX_8G_b55btDn9ZwBHaeG-UmxJqYqGdJkfbSJfWGp8uHHQMvRGXlccHFRhX8o58n/exec";
+
+    function gerarId() {
+      return Date.now().toString();
+    }
 
     function salvarLocalmente(dados) {
       const pendentes = JSON.parse(localStorage.getItem('agrocicPendentes') || '[]');
+      dados._id = gerarId();
       pendentes.push(dados);
       localStorage.setItem('agrocicPendentes', JSON.stringify(pendentes));
     }
 
     async function tentarSincronizar() {
       const pendentes = JSON.parse(localStorage.getItem('agrocicPendentes') || '[]');
-      const enviados = [];
+      const restantes = [];
 
       for (const dados of pendentes) {
         try {
@@ -88,13 +93,18 @@
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(dados),
           });
-          if (res.ok) enviados.push(dados);
-        } catch (_) { /* erro de conexão ou CORS */ }
+
+          const texto = await res.text();
+          if (!(res.ok && texto === "OK")) {
+            restantes.push(dados);
+          }
+        } catch (_) {
+          restantes.push(dados);
+        }
       }
 
-      if (enviados.length > 0) {
-        const restantes = pendentes.filter(d => !enviados.includes(d));
-        localStorage.setItem('agrocicPendentes', JSON.stringify(restantes));
+      localStorage.setItem('agrocicPendentes', JSON.stringify(restantes));
+      if (pendentes.length !== restantes.length) {
         statusEl.textContent = 'Dados sincronizados!';
       }
     }
